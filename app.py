@@ -12,9 +12,6 @@ CORS(app)
 
 client = anthropic.Anthropic(api_key=os.environ.get("CLAUDE_API_KEY"))
 
-# ---------------------------------------------------------------------------
-# KONFIGURACJA KALENDARZA
-# ---------------------------------------------------------------------------
 CALENDAR_ID = os.environ.get("CALENDAR_ID", "primary")
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL")
 
@@ -130,9 +127,6 @@ def create_booking(start_iso, end_iso, client_name, client_contact, topic):
     return created
 
 
-# ---------------------------------------------------------------------------
-# NARZĘDZIA (TOOLS) DLA CLAUDE
-# ---------------------------------------------------------------------------
 TOOLS = [
     {
         "name": "sprawdz_wolne_terminy",
@@ -178,31 +172,36 @@ TOOLS = [
 
 
 def run_tool(tool_name, tool_input):
-    if tool_name == "sprawdz_wolne_terminy":
-        slots = find_free_slots()
-        if not slots:
-            return {"result": "Brak wolnych terminów w najbliższych dniach."}
-        return {"free_slots": slots}
+    try:
+        if tool_name == "sprawdz_wolne_terminy":
+            slots = find_free_slots()
+            print(f"[KALENDARZ] sprawdz_wolne_terminy -> znaleziono {len(slots)} slotów: {slots}")
+            if not slots:
+                return {"result": "Brak wolnych terminów w najbliższych dniach."}
+            return {"free_slots": slots}
 
-    if tool_name == "umow_termin":
-        event = create_booking(
-            start_iso=tool_input["start"],
-            end_iso=tool_input["end"],
-            client_name=tool_input["client_name"],
-            client_contact=tool_input["client_contact"],
-            topic=tool_input["topic"],
-        )
-        return {
-            "result": "zarezerwowano",
-            "event_link": event.get("htmlLink"),
-        }
+        if tool_name == "umow_termin":
+            print(f"[KALENDARZ] umow_termin -> próba zapisu z danymi: {tool_input}")
+            event = create_booking(
+                start_iso=tool_input["start"],
+                end_iso=tool_input["end"],
+                client_name=tool_input["client_name"],
+                client_contact=tool_input["client_contact"],
+                topic=tool_input["topic"],
+            )
+            print(f"[KALENDARZ] umow_termin -> SUKCES, event id: {event.get('id')}, link: {event.get('htmlLink')}")
+            return {
+                "result": "zarezerwowano",
+                "event_link": event.get("htmlLink"),
+            }
 
-    return {"error": f"Nieznane narzędzie: {tool_name}"}
+        return {"error": f"Nieznane narzędzie: {tool_name}"}
+
+    except Exception as e:
+        print(f"[KALENDARZ] BŁĄD w narzędziu {tool_name}: {type(e).__name__}: {e}")
+        return {"error": f"Nie udało się wykonać operacji na kalendarzu: {str(e)}"}
 
 
-# ---------------------------------------------------------------------------
-# PROMPT SYSTEMOWY
-# ---------------------------------------------------------------------------
 SYSTEM_PROMPT = """Jesteś asystentem AI dr. Daniela Butytera, tłumacza przysięgłego języka ukraińskiego we Wrocławiu. Odpowiadasz w języku, w którym pisze klient — jeśli pisze po polsku, odpowiadasz po polsku; jeśli pisze po ukraińsku, odpowiadasz po ukraińsku. Jesteś rzeczowy, uprzejmy i profesjonalny.
 
 Twoje zadania:
@@ -215,6 +214,7 @@ WAŻNE ZASADY:
 - Przy pytaniu o konkretną cenę: wyjaśnij, że cena ustalana jest indywidualnie po wycenie dokumentu.
 - Zanim użyjesz umow_termin, musisz mieć od klienta: wybrany termin (z listy zwróconej przez sprawdz_wolne_terminy), imię, kontakt (telefon lub e-mail) i krótki temat sprawy. Jeśli czegoś brakuje — dopytaj.
 - Po udanej rezerwacji poinformuj klienta, że termin został zarezerwowany i że dr Butyter dostał powiadomienie.
+- Jeśli wynik narzędzia zawiera pole "error", NIE potwierdzaj rezerwacji — powiedz klientowi szczerze, że wystąpił problem techniczny przy zapisie w kalendarzu i że najlepiej skontaktować się bezpośrednio z biurem (telefon: +48 530 665 565).
 - Jeśli klient pyta czy rozmawia z botem — przyznaj to uczciwie.
 
 STYL PISANIA — BARDZO WAŻNE:
