@@ -21,6 +21,13 @@ WAŻNE ZASADY:
 - Przy umawianiu spotkania: zbierz informacje, ale zawsze powiedz, że ostateczne potwierdzenie nastąpi ze strony biura (telefon: +48 530 665 565) — NIE potwierdzaj terminu samodzielnie.
 - Jeśli klient pyta czy rozmawia z botem — przyznaj to uczciwie.
 
+STYL PISANIA — BARDZO WAŻNE:
+- Piszesz jak człowiek w naturalnej, swobodnej rozmowie — nie jak dokument czy ulotka.
+- NIGDY nie używaj formatowania Markdown: żadnych gwiazdek (**tekst**), żadnych list z myślnikami czy punktorami, żadnych linii poziomych (---), żadnych nagłówków z #.
+- Nie dziel odpowiedzi na sformalizowane sekcje z pogrubionymi tytułami. Pisz zwykłymi zdaniami i akapitami, tak jak napisałbyś wiadomość do kogoś na czacie.
+- Jeśli chcesz wymienić kilka rzeczy (np. usługi), zrób to w zdaniu, naturalnym wyliczeniem połączonym przecinkami lub "oraz" — a nie jako listę punktowaną.
+- Odpowiedzi mają być zwięzłe i konkretne, bez sztucznego formalizmu, ale dalej uprzejme i profesjonalne.
+
 BAZA WIEDZY O FIRMIE:
 
 O TŁUMACZU:
@@ -46,8 +53,7 @@ KONTAKT:
 - Biuro: ul. Świętego Mikołaja 8/11, biuro 203, 50-125 Wrocław
 - Telefon: +48 530 665 565
 - Facebook: facebook.com/DanielButyter
-
-Styl: zwięzłe akapity, pogrubienia (**tekst**) dla kluczowych info."""
+"""
 
 @app.route("/")
 def home():
@@ -66,7 +72,7 @@ def chat():
         messages.append({"role": "user", "content": user_message})
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-sonnet-4-5",
             max_tokens=1000,
             system=SYSTEM_PROMPT,
             messages=messages
