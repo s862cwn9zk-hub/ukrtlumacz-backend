@@ -12,18 +12,23 @@ CORS(app)
 
 client = anthropic.Anthropic(api_key=os.environ.get("CLAUDE_API_KEY"))
 
+# ---------------------------------------------------------------------------
+# KONFIGURACJA KALENDARZA
+# ---------------------------------------------------------------------------
 CALENDAR_ID = os.environ.get("CALENDAR_ID", "primary")
-OWNER_EMAIL = os.environ.get("OWNER_EMAIL")
+OWNER_EMAIL = os.environ.get("OWNER_EMAIL")  # np. 1maciejolszewski@gmail.com
 
 WORK_START_HOUR = 9
 WORK_END_HOUR = 17
-WORK_DAYS = [0, 1, 2, 3, 4]
+WORK_DAYS = [0, 1, 2, 3, 4]  # 0=poniedziałek ... 4=piątek
 TIMEZONE = "Europe/Warsaw"
 
 _calendar_service = None
 
 
 def get_calendar_service():
+    """Tworzy (raz) połączenie z Google Calendar API na podstawie danych
+    konta usługi wklejonych jako zmienna środowiskowa."""
     global _calendar_service
     if _calendar_service is not None:
         return _calendar_service
@@ -41,6 +46,8 @@ def get_calendar_service():
 
 
 def find_free_slots(days_ahead=7, slot_minutes=60, max_slots=5):
+    """Przeszukuje kalendarz na najbliższe `days_ahead` dni roboczych
+    i zwraca listę wolnych slotów (ISO start/end) w godzinach pracy."""
     service = get_calendar_service()
     now = datetime.datetime.utcnow()
 
@@ -102,6 +109,7 @@ def find_free_slots(days_ahead=7, slot_minutes=60, max_slots=5):
 
 
 def create_booking(start_iso, end_iso, client_name, client_contact, topic):
+    """Tworzy wydarzenie w kalendarzu właściciela."""
     service = get_calendar_service()
 
     event = {
@@ -115,18 +123,22 @@ def create_booking(start_iso, end_iso, client_name, client_contact, topic):
         "start": {"dateTime": start_iso, "timeZone": TIMEZONE},
         "end": {"dateTime": end_iso, "timeZone": TIMEZONE},
     }
-    if OWNER_EMAIL:
-        event["attendees"] = [{"email": OWNER_EMAIL}]
+    # Uwaga: konta usługi (Service Account) nie mogą zapraszać uczestników
+    # (attendees) bez Domain-Wide Delegation, więc NIE dodajemy OWNER_EMAIL
+    # jako attendee — wydarzenie i tak ląduje bezpośrednio w kalendarzu
+    # właściciela (bo to jest jego kalendarz), dane kontaktowe są w opisie.
 
     created = service.events().insert(
         calendarId=CALENDAR_ID,
         body=event,
-        sendUpdates="all",
     ).execute()
 
     return created
 
 
+# ---------------------------------------------------------------------------
+# NARZĘDZIA (TOOLS) DLA CLAUDE
+# ---------------------------------------------------------------------------
 TOOLS = [
     {
         "name": "sprawdz_wolne_terminy",
@@ -202,6 +214,9 @@ def run_tool(tool_name, tool_input):
         return {"error": f"Nie udało się wykonać operacji na kalendarzu: {str(e)}"}
 
 
+# ---------------------------------------------------------------------------
+# PROMPT SYSTEMOWY
+# ---------------------------------------------------------------------------
 SYSTEM_PROMPT = """Jesteś asystentem AI dr. Daniela Butytera, tłumacza przysięgłego języka ukraińskiego we Wrocławiu. Odpowiadasz w języku, w którym pisze klient — jeśli pisze po polsku, odpowiadasz po polsku; jeśli pisze po ukraińsku, odpowiadasz po ukraińsku. Jesteś rzeczowy, uprzejmy i profesjonalny.
 
 Twoje zadania:
